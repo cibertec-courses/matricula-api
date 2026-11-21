@@ -1,28 +1,39 @@
-Feature: : Matricula de cursos
-  Como alumno de CIBERTEC
-  Quiero matricularme en mis cursos
-  Para llevarlos en el ciclo
+# language: es
+# Examen T1 - Pregunta 1 (6 puntos)
+# Alumno D=7: i202610006 (Pedro Salas) | Curso D=7: BD5410 | Pago sin cuerpo | Debe fallar: matricularse en IA5513
+# IMPORTANTE: ejecutar con la API recien reiniciada (datos frescos de data.sql); el Escenario de la regla
+# que debe fallar se apoya en el estado que deja el escenario de "Matricularse y pagar".
+Característica: Matrícula del alumno
 
-  Scenario: Matricula valida con descuento por promedio y anulacion
-    Given  que Ana consulta la API de matricula
-    When se matricula con el codigo "i202610001" en el curso "PS3511"
-    Then el codigo de respuesta es 201
-    And el monto de la matricula es 288,0
-    And el estado de la matricula es "REGISTRADA"
-    When anula es matricula
-    Then el codigo de respuesta es 200
-    And el estado de la matricula es "ANULADA"
+  Antecedentes:
+    Dado que Pedro inicia sesion con el usuario "i202610006" y la clave "Cibertec2026"
 
-  Scenario Outline: Matricula rechazada por <motivo>
-    Given  que Ana consulta la API de matricula
-    When se matricula por codigo "<alumno>" en el curso "<curso>"
-    Then el codigo de respuesta es <status>
-    And el codigo de error es "<codigo>"
-    Examples:
-      | motivo             | alumno     | curso  | status | codigo               |
-      | deuda              | i202610004 | PS5511 | 422    | ALUMNO_CON_DEUDA     |
-      | duplicada          | i202610003 | IA5513 | 409    | MATRICULA_DUPLICADA  |
-      | falta de vacantes  | i202610001 | IA5513 | 409    | SIN_VACANTES         |
-      | cruce de horario   | i202610002 | QA5517 | 409    | CRUCE_HORARIO        |
-      | límite de créditos | i202610005 | TS5514 | 422    | LIMITE_CREDITOS      |
-      | alumno inexistente | i999999999 | PS5511 | 404    | ALUMNO_NO_ENCONTRADO |
+  Escenario: Cotizar el curso
+    Cuando Pedro cotiza el curso "BD5410"
+    Entonces el codigo de respuesta es 200
+    Y los creditos de la cotizacion son 4
+    Y el subtotal de la cotizacion es 480,0
+    Y el descuento de la cotizacion es 0
+    Y el total de la cotizacion es 480,0
+
+  Escenario: Matricularse y pagar el curso
+    Cuando Pedro se matricula en el curso "BD5410"
+    Entonces el codigo de respuesta es 201
+    Y el estado de la matricula es "REGISTRADA"
+    Y el monto de la matricula es 480,0
+    Y la respuesta cumple el esquema "matricula.json"
+    Cuando Pedro paga su matricula sin indicar metodo de pago
+    Entonces el codigo de respuesta es 200
+    Y el estado de la matricula es "PAGADA"
+    Y la matricula tiene fecha de pago
+    Cuando Pedro consulta sus pagos
+    Entonces el codigo de respuesta es 200
+    Y el pago de la matricula aparece en la lista de pagos
+    Y el metodo de pago registrado por defecto es "EFECTIVO"
+    Y el numero de operacion del pago tiene el formato "OP-[0-9]{6}"
+
+  Escenario: Regla de negocio que debe fallar
+    Cuando Pedro intenta matricularse en el curso "IA5513"
+    Entonces el codigo de respuesta es 409
+    Y el codigo de error es "SIN_VACANTES"
+    Y la respuesta cumple el esquema "error.json"
